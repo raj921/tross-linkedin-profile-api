@@ -102,12 +102,41 @@ export async function fetchProfile(slug) {
   return get(`${BASE}/identity/dash/profiles?${q}`)
 }
 
-export async function fetchSection(profileUrn, sectionType) {
-  if (!cfg().queryId) return []
-  const vars = encodeURIComponent(`(profileUrn:${profileUrn},sectionType:${sectionType},locale:en_US)`)
-  try {
-    return await get(`${BASE}/graphql?variables=${vars}&queryId=${cfg().queryId}`)
-  } catch {
-    return null
-  }
+const PAGERS = {
+  skills: ['com.linkedin.sdui.pagers.profile.details.skills', 'ProfileSkillDetails'],
+  certifications: ['com.linkedin.sdui.pagers.profile.details.certifications', 'ProfileCertificationDetails'],
+  languages: ['com.linkedin.sdui.pagers.profile.details.languages', 'ProfileLanguageDetails'],
+}
+
+const BOILER = /^(Licenses & certifications|Languages|Skills|Skills:|Nothing to see for now)$|^Issued |adds? will appear here|When you add new languages|^\$L[0-9a-z]+$|^\d+ endorsements?$/
+
+export async function fetchSections(slug, profileId) {
+  const out = {}
+  await Promise.all(Object.entries(PAGERS).map(async ([kind, [pager, screen]]) => {
+    out[kind] = []
+    try {
+      const body = JSON.stringify({
+        pagerId: pager,
+        clientArguments: { $type: 'proto.sdui.actions.requests.RequestedArguments', requestedStateKeys: [], payload: { vanityName: slug, start: 0, count: 50, profileId }, requestMetadata: { $type: 'proto.sdui.common.RequestMetadata' }, states: [], screenId: `com.linkedin.sdui.flagshipnav.profile.${screen}`, knownTemplateIds: [] },
+        paginationRequest: { $type: 'proto.sdui.actions.requests.PaginationRequest', pagerId: pager, retryCount: 2 },
+      })
+      const res = await fetch(`https://www.linkedin.com/flagship-web/rsc-action/actions/pagination?sduiid=${pager}`, {
+        method: 'POST',
+        headers: {
+          cookie: `li_at=${cfg().liAt}; JSESSIONID="${cfg().csrf}"`,
+          'csrf-token': cfg().csrf,
+          'content-type': 'application/json',
+          'x-li-rsc-stream': 'true',
+          'user-agent': UA,
+        },
+        body,
+        signal: AbortSignal.timeout(15000),
+      })
+      if (!res.ok) return
+      const txt = await res.text()
+      const names = [...txt.matchAll(/"children":\["([^"\\]{2,90})"\]/g)].map((m) => m[1])
+      out[kind] = [...new Set(names)].filter((n) => !BOILER.test(n))
+    } catch {}
+  }))
+  return out
 }

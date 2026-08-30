@@ -23,12 +23,12 @@ LI_LIVE=1 npm run check # live
 
 ## Approach
 
-Reverse-engineered Voyager endpoints (`FullProfileWithEntities-93` at `li.js:86`). `map.js:27` normalizes `multiLocale*` to English, largest image artifact, resolved `urn` refs. `1h` `Map` cache + `Promise.all` sections (`server.js:38`).
+Reverse-engineered endpoints (`FullProfileWithEntities-93` at `li.js:83` for core profile, `rsc-action` pagination at `li.js:92` for skills/certifications/languages). `map.js:27` normalizes `multiLocale*` to English, largest image artifact, resolved `urn` refs. `1h` `Map` cache + parallel section fetch (`server.js:39`).
 
 ## Limitations
 
 - Session decays (IP pinned) — manual rotation or `LI_EMAIL`/`LI_PASSWORD` (`li.js:31`).
-- `queryId` rotates (`LI_QUERY_ID`).
+- Section pager ids are LinkedIn-internal — if sections return `[]`, core data still ships.
 - Rate limits — cache absorbs repeats.
 - Unofficial — no SLA.
 

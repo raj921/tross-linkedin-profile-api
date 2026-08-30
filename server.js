@@ -1,6 +1,6 @@
 import http from 'node:http'
 import { readFileSync } from 'node:fs'
-import { fetchProfile, fetchSection } from './li.js'
+import { fetchProfile, fetchSections } from './li.js'
 import { mapProfile } from './map.js'
 
 const UI = readFileSync(new URL('./public/index.html', import.meta.url))
@@ -39,14 +39,8 @@ function profileUrnFrom(dash) {
 async function fetchAndMap(slug) {
   const dash = await fetchProfile(slug)
   const urn = profileUrnFrom(dash)
-  const [skills, certs, langs] = urn && process.env.LI_QUERY_ID
-    ? await Promise.all([fetchSection(urn, 'skills'), fetchSection(urn, 'certifications'), fetchSection(urn, 'languages')])
-    : [[], [], []]
-  const sections = {
-    skills: Array.isArray(skills) ? skills : skills?.data || [],
-    certifications: Array.isArray(certs) ? certs : certs?.data || [],
-    languages: Array.isArray(langs) ? langs : langs?.data || [],
-  }
+  const profileId = urn ? urn.split(':').pop() : null
+  const sections = profileId ? await fetchSections(slug, profileId) : {}
   return mapProfile(dash, slug, sections)
 }
 
