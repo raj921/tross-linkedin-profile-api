@@ -35,32 +35,48 @@ async function login() {
   if (loginInProgress) return loginInProgress
   loginInProgress = (async () => {
     try {
-      const pre = await fetch('https://www.linkedin.com/login', { headers: { 'user-agent': UA }, redirect: 'manual' })
+      const pre = await fetch('https://www.linkedin.com/login?fromSignIn=true', { headers: { 'user-agent': UA, 'accept-language': 'en-US,en;q=0.9' }, redirect: 'manual' })
       const html = await pre.text()
-      const csrf = html.match(/name="loginCsrfParam" value="([^"]+)"/)?.[1] || html.match(/loginCsrfParam":"([^"]+)"/)?.[1] || ''
-      const sId = pre.headers.get('set-cookie')?.match(/JSESSIONID="([^"]+)"/)?.[1] || cfg().csrf || 'ajax:0'
-      const body = new URLSearchParams({ session_key: email, session_password: password, loginCsrfParam: csrf, isJsEnabled: 'true' })
-      const res = await fetch('https://www.linkedin.com/checkpoint/lg/login-submit', {
+      const csrf = html.match(/name="loginCsrfParam" value="([^"]+)"/)?.[1] || html.match(/loginCsrfParam":"([^"]+)"/)?.[1] || html.match(/"loginCsrfParam":"([^"]+)"/)?.[1] || ''
+      let sId = pre.headers.get('set-cookie')?.match(/JSESSIONID="([^"]+)"/)?.[1] || cfg().csrf || 'ajax:0'
+      const cookies = [`JSESSIONID="${sId}"`]
+      const body = new URLSearchParams({ session_key: email, session_password: password, loginCsrfParam: csrf, isJsEnabled: 'true', loginCsrfParam_2: csrf })
+      let res = await fetch('https://www.linkedin.com/checkpoint/lg/login-submit', {
         method: 'POST',
         headers: {
           'user-agent': UA,
           'content-type': 'application/x-www-form-urlencoded',
-          cookie: `JSESSIONID="${sId}"`,
+          cookie: cookies.join('; '),
           'csrf-token': sId,
+          referer: 'https://www.linkedin.com/login',
         },
         body,
         redirect: 'manual',
       })
-      const setCookie = res.headers.getSetCookie?.() || res.headers.get('set-cookie') || ''
-      const m = setCookie.toString().match(/li_at=([^;]+)/)
+      let setCookie = (res.headers.getSetCookie?.() || res.headers.get('set-cookie') || '').toString()
+      let loc = res.headers.get('location')
+      let tries = 0
+      while ((res.status === 302 || res.status === 303) && loc && tries < 5) {
+        const c = res.headers.get('set-cookie')
+        if (c) cookies.push(c.split(',').map(s => s.split(';')[0].trim()).join('; '))
+        if (setCookie.match(/li_at=([^;]+)/)) break
+        res = await fetch(loc.startsWith('http') ? loc : `https://www.linkedin.com${loc}`, {
+          headers: { 'user-agent': UA, cookie: cookies.join('; '), 'csrf-token': sId },
+          redirect: 'manual',
+        })
+        setCookie += '; ' + (res.headers.get('set-cookie') || '')
+        loc = res.headers.get('location')
+        tries++
+      }
+      const m = setCookie.match(/li_at=([^;]+)/)
       if (m) {
         process.env.LI_AT = m[1]
-        const j = setCookie.toString().match(/JSESSIONID="([^"]+)"/)
+        const j = setCookie.match(/JSESSIONID="([^"]+)"/)
         if (j) process.env.JSESSIONID = j[1]
         return true
       }
       return false
-    } catch { return false } finally { setTimeout(() => (loginInProgress = null), 5000) }
+    } catch { return false } finally { setTimeout(() => (loginInProgress = null), 8000) }
   })()
   return loginInProgress
 }
