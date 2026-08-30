@@ -1,5 +1,5 @@
 const BASE = 'https://www.linkedin.com/voyager/api'
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
 
 const cfg = () => ({
   liAt: process.env.LI_AT,
@@ -14,6 +14,12 @@ const headers = () => ({
   accept: 'application/vnd.linkedin.normalized+json+2.1',
   'x-restli-protocol-version': '2.0.0',
   'x-li-lang': 'en_US',
+  'accept-language': 'en-US,en;q=0.9',
+  'x-li-track': '{"clientVersion":"1.13.166","osName":"web","timezoneOffset":0}',
+  'sec-fetch-site': 'same-origin',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'empty',
+  referer: 'https://www.linkedin.com/',
 })
 
 export class LiError extends Error {
@@ -21,8 +27,9 @@ export class LiError extends Error {
 }
 
 async function get(url) {
-  const res = await fetch(url, { headers: headers(), signal: AbortSignal.timeout(15000) })
-  if (res.status === 401 || res.status === 403 || res.status === 999)
+  const res = await fetch(url, { headers: headers(), redirect: 'manual', signal: AbortSignal.timeout(15000) })
+  // LinkedIn returns 302 with delete-me cookies when fingerprint/IP flagged — treat as auth
+  if (res.status === 302 || res.status === 401 || res.status === 403 || res.status === 999)
     throw new LiError(502, 'linkedin_auth') // cookie expired/flagged
   if (res.status === 404) throw new LiError(404, 'profile_not_found')
   if (res.status === 429) throw new LiError(503, 'linkedin_rate_limited')
