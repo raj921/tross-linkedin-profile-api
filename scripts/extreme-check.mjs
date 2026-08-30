@@ -19,7 +19,6 @@ async function okAsync(name, fn) {
 }
 
 try {
-  // 1. healthz
   await okAsync('healthz 200', async () => {
     const r = await fetch(`${BASE}/healthz`)
     assert.equal(r.status, 200)
@@ -31,7 +30,6 @@ try {
     assert.equal(r.status, 200)
   })
 
-  // 2. missing_url
   await okAsync('missing_url 400', async () => {
     const r = await fetch(`${BASE}/profile`)
     assert.equal(r.status, 400)
@@ -39,7 +37,6 @@ try {
     assert.equal(j.error.code, 'missing_url')
   })
 
-  // 3. bad_url cases
   const bads = [
     ['https://google.com/in/williamhgates', 'wrong host'],
     ['https://linkedin.com/in/', 'no slug'],
@@ -54,10 +51,7 @@ try {
   for (const [url, label] of bads) {
     await okAsync(`bad_url: ${label}`, async () => {
       const r = await fetch(`${BASE}/profile?url=${encodeURIComponent(url)}`)
-      // bare slug "not-a-url-but..." is actually valid slug per SLUG regex, so it would try LinkedIn and get 404 or 502, not 400
-      // we check that truly bad ones are 400
       if (label.includes('bare slug')) {
-        // skip, it's expected to be 502/404 not 400
         assert.ok([400, 404, 502].includes(r.status))
       } else {
         assert.equal(r.status, 400, `expected 400 for ${url} got ${r.status}`)
@@ -67,7 +61,6 @@ try {
     })
   }
 
-  // 4. valid slug forms — should all 200 if LI_AT set, else 502 auth (still not 400)
   const validForms = [
     'https://www.linkedin.com/in/williamhgates/',
     'https://www.linkedin.com/in/williamhgates',
@@ -79,7 +72,6 @@ try {
   for (const form of validForms) {
     await okAsync(`valid form: ${form.slice(0,40)}`, async () => {
       const r = await fetch(`${BASE}/profile?url=${encodeURIComponent(form)}`)
-      // with fresh LI_AT should be 200, without should be 502 linkedin_auth — both are not 400
       assert.ok([200, 502].includes(r.status), `valid form got ${r.status}`)
       if (r.status === 200) {
         const j = await r.json()
@@ -93,16 +85,13 @@ try {
     })
   }
 
-  // 5. not found — random slug
   await okAsync('profile_not_found 404', async () => {
     const r = await fetch(`${BASE}/profile?url=https://www.linkedin.com/in/this-user-does-not-exist-xyz123456789/`)
-    // LinkedIn returns 404 for not found, or 502 if auth, both acceptable; but if auth valid, should be 404
     assert.ok([404, 502].includes(r.status), `not found got ${r.status}`)
     const j = await r.json()
     assert.ok(['profile_not_found', 'linkedin_auth', 'linkedin_404'].includes(j.error.code) || j.error.code.startsWith('linkedin_'))
   })
 
-  // 6. mapProfile edge cases (unit)
   ok('mapProfile: fixture williamhgates', () => {
     const dash = JSON.parse(readFileSync(new URL('../fixtures/dash-williamhgates.json', import.meta.url)))
     const p = mapProfile(dash, 'williamhgates')
@@ -137,17 +126,15 @@ try {
     assert.deepEqual(p.certifications, ['aws'])
   })
 
-  // 7. cache: hit and stale
   await okAsync('cache hit', async () => {
     if (!process.env.LI_AT) { console.log('  skip cache hit: no LI_AT'); return }
     const url = `${BASE}/profile?url=https://www.linkedin.com/in/williamhgates/`
-    await fetch(url) // warm
+    await fetch(url)
     const r = await fetch(url)
     const j = await r.json()
     assert.equal(j._meta.cache, 'hit')
   })
 
-  // 8. extreme concurrency 50 parallel healthz
   await okAsync('concurrent 50 healthz', async () => {
     const t0 = Date.now()
     const rs = await Promise.all(Array.from({ length: 50 }, () => fetch(`${BASE}/healthz`)))
@@ -169,7 +156,6 @@ try {
     console.log(`  20 profile parallel in ${dt}ms`)
   })
 
-  // 9. extreme inputs: very long URL, unicode, double encode
   await okAsync('extreme long URL 400', async () => {
     const long = 'https://www.linkedin.com/in/' + 'a'.repeat(5000)
     const r = await fetch(`${BASE}/profile?url=${encodeURIComponent(long)}`)
@@ -186,13 +172,11 @@ try {
     assert.equal(r.status, 400)
   })
 
-  // 10. not_found route
   await okAsync('unknown route 404', async () => {
     const r = await fetch(`${BASE}/unknown`)
     assert.equal(r.status, 404)
   })
 
-  // 11. verify no secrets in repo still
   await okAsync('no secrets in repo', async () => {
     const { execSync } = await import('node:child_process')
     const files = execSync('git ls-files').toString().trim().split('\n').filter(f => f && !f.startsWith('fixtures/'))
@@ -202,7 +186,6 @@ try {
     }
   })
 
-  // 12. verify no browser automation
   await okAsync('no browser automation', async () => {
     const p = JSON.parse(readFileSync('package.json', 'utf8'))
     const s = JSON.stringify(p) + readFileSync('li.js', 'utf8')

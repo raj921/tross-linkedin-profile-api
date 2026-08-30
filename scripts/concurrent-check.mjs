@@ -1,8 +1,6 @@
 import assert from 'node:assert'
 import { spawn } from 'node:child_process'
 
-// ponytail: concurrency check — 10 parallel /healthz + 10 parallel /profile (cache) must all 200 and be faster than sequential
-// Ceiling: in-memory Map, per-process; upgrade: Redis for multi-instance
 
 const PORT = 3998
 const BASE = `http://localhost:${PORT}`
@@ -14,7 +12,6 @@ await wait(800)
 
 let ok = false
 try {
-  // 1. healthz parallel — 20 concurrent
   const t0 = Date.now()
   const health = await Promise.all(Array.from({ length: 20 }, () => fetch(`${BASE}/healthz`).then(r => r.json().then(j => ({ s: r.status, j })))))
   const th = Date.now() - t0
@@ -24,11 +21,9 @@ try {
   }
   console.log(`healthz 20 parallel: ${th}ms`)
 
-  // 2. profile parallel — only if LI_AT set, else skip
   if (process.env.LI_AT) {
     const slug = process.env.LI_TEST_SLUG || 'williamhgates'
     const url = `${BASE}/profile?url=https://www.linkedin.com/in/${slug}/`
-    // warm cache
     const r1 = await fetch(url)
     assert.equal(r1.status, 200)
     const j1 = await r1.json()
@@ -41,10 +36,8 @@ try {
       assert.equal(s, 200)
       assert.ok(j.name)
     }
-    // cache hits should be fast: parallel 10 should be < 1000ms (vs sequential ~5s)
     assert.ok(tp < 2000, `parallel profile too slow: ${tp}ms`)
     console.log(`profile 10 parallel (cached): ${tp}ms, all 200`)
-    // sequential would be ~ th*10, verify parallel is faster
     assert.ok(tp < th * 5 || th < 50, 'parallel not faster than sequential')
   } else {
     console.log('skip profile parallel: LI_AT not set')

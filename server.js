@@ -5,8 +5,6 @@ import { mapProfile } from './map.js'
 const PORT = process.env.PORT || 3000
 const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9-]{2,99}$/
 
-// ponytail: in-memory cache, dies with the process. Ceiling: per-instance only,
-// no sharing across replicas. Upgrade path: Redis if we ever run >1 instance.
 const cache = new Map()
 const TTL = 60 * 60 * 1000
 
@@ -38,7 +36,6 @@ function profileUrnFrom(dash) {
 async function fetchAndMap(slug) {
   const dash = await fetchProfile(slug)
   const urn = profileUrnFrom(dash)
-  // ponytail: parallel section fetch — 3 calls concurrent, Ceiling: 4 concurrent Voyager hits (1+3) may 429 under burst; upgrade: semaphore/queue at 2
   const [skills, certs, langs] = urn && process.env.LI_QUERY_ID
     ? await Promise.all([fetchSection(urn, 'skills'), fetchSection(urn, 'certifications'), fetchSection(urn, 'languages')])
     : [[], [], []]
@@ -70,7 +67,6 @@ const server = http.createServer(async (req, res) => {
   const hit = cache.get(slug)
   const now = Date.now()
   if (hit && now - hit.at < TTL) return send(res, 200, { ...hit.data, _meta: { ...hit.data._meta, cache: 'hit' } })
-  // ponytail: stale-while-revalidate — serve stale instantly, refresh in background. Ceiling: single background refresh per slug; upgrade: coalesce with promise cache
   if (hit && now - hit.at < TTL * 2) {
     send(res, 200, { ...hit.data, _meta: { ...hit.data._meta, cache: 'stale' } })
     refresh(slug).catch(() => {})

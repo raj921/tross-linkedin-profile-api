@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs'
 import assert from 'node:assert'
 import { mapProfile } from '../map.js'
 
-// offline: mapper against a captured voyager response
 const dash = JSON.parse(readFileSync(new URL('../fixtures/dash-williamhgates.json', import.meta.url)))
 const p = mapProfile(dash, 'williamhgates')
 assert.equal(p.name, 'Bill Gates')
@@ -15,7 +14,6 @@ assert.ok(p.experience.some((x) => x.company === 'Gates Foundation'), 'gates fdn
 assert.ok(p.education.length >= 1, 'education')
 console.log('offline mapper check passed')
 
-// live: boots the server, hits /profile. Skipped unless LI_LIVE=1 (needs fresh cookie).
 if (process.env.LI_LIVE === '1') {
   const { spawn } = await import('node:child_process')
   const srv = spawn('node', ['server.js'], { env: { ...process.env, PORT: '3999' } })
