@@ -4,172 +4,181 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LinkedIn Profile API</title>
-<meta name="description" content="Reverse-engineered LinkedIn Voyager API behind one GET — paste a profile URL, get structured JSON.">
+<meta name="description" content="LinkedIn's internal API behind one GET. Paste a profile URL, get JSON.">
 <style>
 :root{
-  --bg:#0b0f14; --surface:#11161d; --surface-2:#171f29; --border:#24303e;
-  --text:#e8eef4; --text-2:#97a6b6;
-  --accent:#4da3ff; --accent-press:#2f7fd6;
-  --ok:#3fb950; --err:#f85149;
-  --r-s:8px; --r-m:12px;
-  --t:180ms cubic-bezier(.2,0,0,1);
-  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
-  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --ink:#e8e6e1; --ink-2:#8a867d; --ink-3:#4a4741;
+  --paper:#101010; --card:#161614; --line:#2a2924; --line-2:#3a3933;
+  --amber:#d4a94e; --amber-dim:#8a6d2e; --red:#c85f4b; --green:#7da05a;
+  --mono:'SF Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,'Inter','Helvetica Neue',Arial,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{color-scheme:dark}
-body{background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
-.wrap{max-width:860px;margin:0 auto;padding:0 24px}
-a{color:var(--accent);text-decoration:none}
-a:hover{text-decoration:underline}
-code{font-family:var(--mono);font-size:.9em}
-button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+body{background:var(--paper);color:var(--ink);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+::selection{background:var(--amber-dim);color:var(--paper)}
+a{color:var(--amber);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+:focus-visible{outline:1.5px solid var(--amber);outline-offset:2px}
+.mono{font-family:var(--mono)}
 
-header{border-bottom:1px solid var(--border);padding:clamp(20px,4vw,32px) 0}
-.head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
-h1{font-size:clamp(1.5rem,1.2rem + 1.5vw,2.1rem);line-height:1.2;letter-spacing:-.02em}
-.tag{color:var(--text-2);margin-top:6px;max-width:56ch}
-.live{font-family:var(--mono);font-size:12.5px;color:var(--ok);border:1px solid var(--border);border-radius:999px;padding:6px 14px;white-space:nowrap}
-.live:hover{text-decoration:none;border-color:var(--ok)}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:8px}
+.page{max-width:920px;margin:0 auto;padding:0 28px}
 
-main{padding:clamp(24px,5vw,40px) 0 0}
-section{margin-bottom:24px}
+.mast{border-bottom:1px solid var(--line)}
+.mast .page{display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:26px 28px 24px;flex-wrap:wrap}
+.wordmark{display:flex;align-items:baseline;gap:12px}
+h1{font-size:15px;font-weight:650;letter-spacing:.02em}
+h1::before{content:'▍';color:var(--amber);margin-right:10px}
+.sub{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);letter-spacing:.02em}
+.pill{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--green);border:1px solid var(--line);padding:5px 12px;display:flex;align-items:center;gap:8px}
+.pill::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
 
-#url{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-s);color:var(--text);font-family:var(--mono);font-size:13.5px;padding:12px 14px;transition:border-color var(--t)}
-#url::placeholder{color:#5c6b7a}
-#url:focus{outline:none;border-color:var(--accent)}
-#url.bad{border-color:var(--err)}
-.row{display:flex;gap:8px}
-#go{background:var(--accent);color:#06121f;font-weight:600;border-radius:var(--r-s);padding:12px 20px;transition:background var(--t),transform var(--t)}
-#go:hover{background:var(--accent-press)}
-#go:active{transform:scale(.97)}
-#go:disabled{opacity:.55;cursor:default;transform:none}
-.hint{font-family:var(--mono);font-size:12.5px;color:var(--text-2);margin-top:8px;min-height:1.4em}
-.hint.err{color:var(--err)}
+main{padding:34px 0 8px}
+.kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.kicker::before{content:'';width:22px;height:1px;background:var(--amber)}
 
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-m);padding:20px;margin-bottom:16px}
-.card h2{font-size:1rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:14px;font-weight:600}
+.qform{display:flex;gap:0;border:1px solid var(--line-2);background:var(--card);transition:border-color .15s}
+.qform:focus-within{border-color:var(--amber-dim)}
+#url{flex:1;min-width:0;background:transparent;border:0;padding:15px 16px;font-family:var(--mono);font-size:13px;color:var(--ink)}
+#url::placeholder{color:var(--ink-3)}
+#url:focus{outline:none}
+.qform.bad{border-color:var(--red)}
+#go{font-family:var(--mono);font-size:12px;letter-spacing:.04em;background:var(--ink);color:var(--paper);padding:0 22px;border-left:1px solid var(--line-2);transition:background .15s,color .15s}
+#go:hover{background:var(--amber)}
+#go:disabled{background:var(--ink-3);color:var(--paper);cursor:default}
+.qhint{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);margin-top:10px;min-height:1.3em}
+.qhint.err{color:var(--red)}
+.examples{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.ex{font-family:var(--mono);font-size:11px;color:var(--ink-2);border:1px solid var(--line);padding:4px 10px;transition:color .15s,border-color .15s}
+.ex:hover{color:var(--amber);border-color:var(--amber-dim)}
 
-.head{display:flex;gap:16px;align-items:flex-start}
-.avatar{width:72px;height:72px;border-radius:var(--r-s);object-fit:cover;flex:none;background:var(--surface-2)}
-.avatar.ph{display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--accent);font-family:var(--mono)}
-.who{min-width:0}
-.who h2{font-size:1.25rem;text-transform:none;letter-spacing:0;color:var(--text);margin:0}
-.hl{margin-top:2px}
-.meta-row{display:flex;gap:12px;flex-wrap:wrap;color:var(--text-2);font-size:13.5px;margin-top:8px;align-items:center}
-.meta2{font-family:var(--mono);font-size:12px;color:#5c6b7a;margin-top:8px}
+.sect{margin-top:34px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{border:1px solid var(--line);background:var(--card);padding:18px 20px}
+.card .kicker{margin-bottom:12px}
+.card+.card{margin-top:16px}
+.grid2 .card+.card{margin-top:0}
 
-.xrow{padding:12px 0;border-top:1px solid var(--border)}
-.xrow:first-of-type{border-top:0;padding-top:0}
-.xrow:last-child{padding-bottom:0}
-.xtop{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.xtop b{font-weight:600}
-.xco{color:var(--text-2)}
-.dates{font-family:var(--mono);font-size:12.5px;color:var(--text-2);white-space:nowrap}
-.xdesc{color:var(--text-2);font-size:13.5px;margin-top:6px;white-space:pre-line}
-.badge{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);border-radius:999px;padding:1px 8px;margin-left:8px}
+.result-head{display:flex;gap:18px;align-items:flex-start}
+.avatar{width:64px;height:64px;object-fit:cover;border:1px solid var(--line-2);flex:none;filter:grayscale(.15)}
+.avatar.ph{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:20px;color:var(--amber);background:var(--paper)}
+.pname{font-size:19px;font-weight:650;letter-spacing:-.02em;line-height:1.25}
+.phl{color:var(--ink-2);margin-top:4px;font-size:13px}
+.pmeta{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:10px;display:flex;gap:14px;flex-wrap:wrap}
+.pmeta .ok{color:var(--green)}
+.pmeta a{font-size:11px}
 
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:13px}
+.xrow{padding:11px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:6px 14px}
+.xrow:first-of-type{border-top:0;padding-top:2px}
+.xtitle{font-weight:600;font-size:13.5px}
+.xco{color:var(--ink-2);font-weight:400}
+.xco::before{content:' · '}
+.xdates{font-family:var(--mono);font-size:11px;color:var(--ink-2);white-space:nowrap;padding-top:2px}
+.xdesc{grid-column:1/-1;color:var(--ink-2);font-size:12.5px;line-height:1.6}
+.now{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--green);border:1px solid color-mix(in srgb,var(--green) 35%,transparent);padding:1px 7px;margin-left:8px;text-transform:uppercase}
 
-.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
-.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-s);padding:3px;gap:2px}
-.seg button{padding:6px 14px;border-radius:6px;font-size:13px;color:var(--text-2);transition:color var(--t),background var(--t)}
-.seg button.on{background:var(--bg);color:var(--text)}
-.copy{font-family:var(--mono);font-size:12.5px;color:var(--text-2);border:1px solid var(--border);border-radius:var(--r-s);padding:6px 12px;transition:color var(--t),border-color var(--t)}
-.copy:hover{color:var(--text);border-color:var(--accent)}
-pre{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-s);padding:16px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55;max-height:480px}
-pre .key{color:#79c0ff}
-pre .str{color:#a5d6a7}
-pre .num{color:#f2cc60}
-pre .bool{color:#d2a8ff}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);padding:4px 11px;color:var(--ink-2)}
 
-.err-card{border-color:color-mix(in srgb,var(--err) 45%,var(--border))}
-.err-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.status{font-family:var(--mono);font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px;color:var(--err);background:color-mix(in srgb,var(--err) 15%,transparent)}
-.err-top code{color:var(--text-2)}
+.vtabs{display:flex;gap:0;border:1px solid var(--line-2)}
+.vtabs button{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:7px 16px;color:var(--ink-2)}
+.vtabs button.on{background:var(--ink);color:var(--paper)}
+.vtabs button:not(.on):hover{color:var(--ink)}
+.rtools{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+.cp{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--ink-2);border:1px solid var(--line);padding:7px 14px;transition:color .15s,border-color .15s}
+.cp:hover{color:var(--amber);border-color:var(--amber-dim)}
 
-.sk{background:var(--surface-2);border-radius:6px;position:relative;overflow:hidden}
-.sk::after{content:'';position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.05),transparent);animation:sh 1.4s infinite}
+pre{background:var(--card);border:1px solid var(--line);padding:18px;overflow:auto;font-family:var(--mono);font-size:12px;line-height:1.6;max-height:520px}
+pre .k{color:#9db1c7}
+pre .s{color:var(--amber)}
+pre .n{color:#c5b28a}
+pre .b{color:#8fb573}
+
+.errx{border-color:color-mix(in srgb,var(--red) 40%,var(--line))}
+.errx .code{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--red)}
+.errx .st{font-family:var(--mono);font-size:10px;font-weight:700;background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red);padding:2px 8px;margin-right:10px}
+
+.sk{background:var(--line);position:relative;overflow:hidden;border-radius:2px}
+.sk::after{content:'';position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(232,230,225,.06),transparent);animation:sh 1.5s infinite}
 @keyframes sh{to{transform:translateX(100%)}}
-.skel .l1{height:22px;width:40%}
-.skel .l2{height:14px;width:70%}
-.skel .l3{height:14px;width:50%}
-.skel .who .sk{margin-top:10px}
-.skel-b .l1{height:16px;width:30%}
-.skel-b .l2{margin-top:12px}
-.skel-b .l3{margin-top:12px}
-.w60{width:60%!important}
+.sk1{height:20px;width:38%}.sk2{height:12px;width:64%;margin-top:12px}.sk3{height:12px;width:48%;margin-top:10px}
+.skav{width:64px;height:64px}
 
-.docs table{width:100%;border-collapse:collapse;font-size:13.5px}
-.docs td{padding:8px 0;border-top:1px solid var(--border);vertical-align:top}
-.docs tr:first-child td{border-top:0}
-.docs td:first-child{width:34%;padding-right:12px;white-space:nowrap}
-.docs code{color:var(--accent)}
-.curlrow{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}
-.curlrow code{flex:1;overflow-wrap:anywhere;color:var(--text-2)}
+.spec{width:100%;border-collapse:collapse;font-size:13px}
+.spec td{padding:11px 0;border-top:1px solid var(--line);vertical-align:top}
+.spec tr:first-child td{border-top:0}
+.spec td:first-child{width:38%;font-family:var(--mono);font-size:11.5px;color:var(--amber);padding-right:14px}
+.spec td:last-child{color:var(--ink-2)}
+.curl{font-family:var(--mono);font-size:11px;color:var(--ink-2);background:var(--paper);border:1px solid var(--line);padding:12px 14px;display:flex;justify-content:space-between;gap:14px;align-items:center;margin-top:16px}
+.curl span{overflow-wrap:anywhere}
 
-footer{border-top:1px solid var(--border);margin-top:40px;padding:20px 0 32px;color:var(--text-2);font-size:13px}
-footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.foot{border-top:1px solid var(--line);margin-top:44px}
+.foot .page{display:flex;justify-content:space-between;gap:14px;padding:20px 28px 30px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase}
+
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{transition:none!important;animation:none!important}
+@media (max-width:640px){
+  .grid2{grid-template-columns:1fr}
+  .result-head{flex-direction:column}
+  #go{padding:0 16px}
 }
-@media (max-width:560px){
-  .head{flex-direction:column}
-  .row{flex-direction:column}
-  #go{width:100%}
-}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<header>
-  <div class="wrap head-row">
-    <div>
+
+<header class="mast">
+  <div class="page">
+    <div class="wordmark">
       <h1>LinkedIn Profile API</h1>
-      <p class="tag">LinkedIn's own internal API behind one GET. Paste a profile URL, get JSON.</p>
+      <span class="sub">voyager / one GET</span>
     </div>
-    <a class="live" href="/healthz" target="_blank" rel="noopener"><span class="dot"></span>live</a>
+    <a class="pill" href="/healthz" target="_blank" rel="noopener">live</a>
   </div>
 </header>
 
-<main class="wrap">
-  <section class="playground">
-    <form id="f" novalidate>
+<main class="page">
+
+  <section aria-label="Query">
+    <p class="kicker">Query</p>
+    <form id="f" class="qform" novalidate>
       <label class="sr" for="url">LinkedIn profile URL or slug</label>
-      <div class="row">
-        <input id="url" type="text" spellcheck="false" autocomplete="off" placeholder="linkedin.com/in/williamhgates — or a bare slug">
-        <button id="go" type="submit">Fetch profile</button>
-      </div>
-      <p class="hint" id="hint" role="status"></p>
+      <input id="url" type="text" spellcheck="false" autocomplete="off" placeholder="linkedin.com/in/williamhgates">
+      <button id="go" type="submit">fetch →</button>
     </form>
+    <p class="qhint" id="hint" role="status"></p>
+    <div class="examples">
+      <button type="button" class="ex" data-u="https://www.linkedin.com/in/williamhgates/">williamhgates</button>
+      <button type="button" class="ex" data-u="https://www.linkedin.com/in/rbranson/">rbranson</button>
+      <button type="button" class="ex" data-u="https://www.linkedin.com/in/this-does-not-exist-xyz987/">not-found demo</button>
+    </div>
   </section>
 
-  <section id="out" aria-live="polite" aria-label="Result"></section>
+  <section id="out" class="sect" aria-live="polite"></section>
 
-  <section class="docs">
+  <section class="sect" aria-label="API reference">
+    <p class="kicker">Endpoints</p>
     <div class="card" style="margin-bottom:0">
-      <h2>API</h2>
-      <table>
-        <tr><td><code>GET /profile?url=</code></td><td>profile URL or bare slug → structured JSON: name, headline, location, about, experience, education, skills, certifications, languages, images</td></tr>
-        <tr><td><code>GET /healthz</code></td><td>liveness — <code>{"ok":true}</code></td></tr>
-        <tr><td><code>GET /</code></td><td>this page</td></tr>
+      <table class="spec">
+        <tr><td>GET /profile?url=</td><td>profile URL or bare slug → name, headline, location, about, experience, education, images</td></tr>
+        <tr><td>GET /healthz</td><td>liveness — {"ok":true}</td></tr>
+        <tr><td>GET /</td><td>this page</td></tr>
       </table>
-      <div class="curlrow">
-        <code id="curlText">curl -s "https://tross-linkedin-profile-api-jet.vercel.app/profile?url=https://www.linkedin.com/in/williamhgates/"</code>
-        <button class="copy" id="curlCopy" type="button">Copy</button>
+      <div class="curl">
+        <span id="curlText">curl -s "https://tross-linkedin-profile-api-jet.vercel.app/profile?url=https://www.linkedin.com/in/williamhgates/"</span>
+        <button class="cp" id="curlCopy" type="button">copy</button>
       </div>
     </div>
   </section>
+
 </main>
 
-<footer>
-  <div class="wrap">
-    <span><a href="https://github.com/raj921/tross-linkedin-profile-api" target="_blank" rel="noopener">github.com/raj921/tross-linkedin-profile-api</a></span>
-    <span>design system in DESIGN.md · zero dependencies</span>
+<footer class="foot">
+  <div class="page">
+    <span><a href="https://github.com/raj921/tross-linkedin-profile-api" target="_blank" rel="noopener">github / raj921</a></span>
+    <span>zero deps · pure http</span>
   </div>
 </footer>
 
@@ -179,22 +188,18 @@ const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
 const MSG = {
-  missing_url: 'Enter a LinkedIn profile URL, e.g. linkedin.com/in/williamhgates',
-  bad_url: 'That does not look like a linkedin.com/in/<slug> profile URL.',
-  profile_not_found: 'Profile not found — or not visible to the backend account.',
-  linkedin_auth: 'Upstream LinkedIn session expired. The backend needs a fresh li_at cookie.',
-  linkedin_rate_limited: 'LinkedIn is throttling the backend. Try again shortly.',
-  not_found: 'Unknown endpoint.',
-  network: 'Could not reach the API. Check the connection and retry.',
+  missing_url: 'enter a profile url — e.g. linkedin.com/in/williamhgates',
+  bad_url: 'not a linkedin.com/in/<slug> profile url',
+  profile_not_found: 'profile not found — or not visible to the backend account',
+  linkedin_auth: 'upstream session expired — backend needs a fresh li_at cookie',
+  linkedin_rate_limited: 'linkedin is throttling — retry shortly',
+  network: 'could not reach the api',
 }
 
-const SKEL = `
-<div class="card head skel">
-  <div class="avatar sk"></div>
-  <div class="who" style="flex:1"><div class="sk l1"></div><div class="sk l2"></div><div class="sk l3"></div></div>
-</div>
-<div class="card skel-b"><div class="sk l1"></div><div class="sk l2"></div><div class="sk l3 w60"></div></div>
-<div class="card skel-b"><div class="sk l1"></div><div class="sk l3 w60"></div></div>`
+const SKEL = `<div class="card result-head" style="align-items:center">
+  <div class="sk skav"></div>
+  <div style="flex:1"><div class="sk sk1"></div><div class="sk sk2"></div></div></div>
+<div class="card"><div class="sk sk3"></div><div class="sk sk2"></div><div class="sk sk3"></div></div>`
 
 function parse(v) {
   v = v.trim()
@@ -210,9 +215,7 @@ function parse(v) {
   }
 }
 
-let last = null
-let lastRaw = ''
-let view = 'rendered'
+let last = null, lastRaw = '', view = 'rendered'
 
 function hint(t, bad) {
   const h = $('hint')
@@ -221,13 +224,25 @@ function hint(t, bad) {
 }
 
 function fail(status, code, msg) {
-  $('out').innerHTML = `<div class="card err-card" role="alert" style="margin-bottom:0">
-    <div class="err-top"><span class="status">${status || 'ERR'}</span><code>${esc(code)}</code></div>
-    <p>${esc(msg)}</p></div>`
+  $('out').innerHTML = `<div class="card errx" role="alert" style="margin-bottom:0">
+    <p><span class="st">${status || 'ERR'}</span><span class="code">${esc(code)}</span></p>
+    <p style="margin-top:10px;color:var(--ink-2)">${esc(msg)}</p></div>`
 }
 
-function range(x) {
-  return `${x.start || '?'} → ${x.current ? 'now' : (x.end || 'now')}`
+const range = (x) => `${x.start || '—'} → ${x.current ? 'now' : (x.end || 'now')}`
+
+function expRow(x) {
+  return `<div class="xrow">
+    <span class="xtitle">${esc(x.title || '—')}${x.current ? '<span class="now">now</span>' : ''}${x.company ? `<span class="xco">${esc(x.company)}</span>` : ''}</span>
+    <span class="xdates">${esc(range(x))}</span>
+    ${x.description ? `<p class="xdesc">${esc(x.description)}</p>` : ''}</div>`
+}
+
+function eduRow(x) {
+  const bits = [x.degree, x.field].filter(Boolean).join(', ')
+  return `<div class="xrow">
+    <span class="xtitle">${esc(x.school || '—')}${bits ? `<span class="xco">${esc(bits)}</span>` : ''}</span>
+    <span class="xdates">${esc(range(x))}</span></div>`
 }
 
 function label(v) {
@@ -236,68 +251,57 @@ function label(v) {
   return v.name || v.title || v.school || Object.values(v).find((x) => typeof x === 'string') || JSON.stringify(v)
 }
 
-function expRow(x) {
-  return `<div class="xrow"><div class="xtop">
-    <span><b>${esc(x.title || '—')}</b>${x.current ? '<span class="badge">Current</span>' : ''}${x.company ? ` <span class="xco">· ${esc(x.company)}</span>` : ''}</span>
-    <span class="dates">${esc(range(x))}</span></div>
-    ${x.description ? `<p class="xdesc">${esc(x.description)}</p>` : ''}</div>`
-}
-
-function eduRow(x) {
-  const bits = [x.degree, x.field].filter(Boolean).join(', ')
-  return `<div class="xrow"><div class="xtop">
-    <span><b>${esc(x.school || '—')}</b>${bits ? ` <span class="xco">· ${esc(bits)}</span>` : ''}</span>
-    <span class="dates">${esc(range(x))}</span></div></div>`
-}
-
-function chipSec(title, arr) {
+function chipSec(t, arr) {
   if (!Array.isArray(arr) || !arr.length) return ''
-  return `<div class="card"><h2>${title}</h2><div class="chips">${arr.map((v) => `<span class="chip">${esc(label(v))}</span>`).join('')}</div></div>`
+  return `<div class="card"><p class="kicker">${t}</p><div class="chips">${arr.map((v) => `<span class="chip">${esc(label(v))}</span>`).join('')}</div></div>`
 }
 
 function headCard(p) {
   const img = p.images && p.images.profile
   const initials = (p.name || '?').split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
   const cache = p._meta && p._meta.cache ? p._meta.cache : 'fresh'
-  const at = p._meta && p._meta.fetchedAt ? p._meta.fetchedAt.slice(0, 16).replace('T', ' ') : ''
-  return `<article class="card head">
-    ${img ? `<img class="avatar" src="${esc(img)}" alt="" onerror="this.remove()">` : `<div class="avatar ph">${esc(initials)}</div>`}
-    <div class="who">
-      <h2>${esc(p.name || 'Unknown')}</h2>
-      ${p.headline ? `<p class="hl">${esc(p.headline)}</p>` : ''}
-      <p class="meta-row">${p.location ? `<span>${esc(p.location)}</span>` : ''}
-        <a href="${esc(p.url)}" target="_blank" rel="noopener">Open on LinkedIn ↗</a></p>
-      <p class="meta2">${esc(p._meta?.source || 'voyager')} · cache ${esc(cache)}${at ? ` · ${esc(at)}Z` : ''}</p>
-    </div></article>`
+  const at = p._meta && p._meta.fetchedAt ? p._meta.fetchedAt.slice(5, 16).replace('T', ' ') : ''
+  return `<div class="card result-head">
+    ${img ? `<img class="avatar" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">` : `<div class="avatar ph">${esc(initials)}</div>`}
+    <div style="min-width:0">
+      <p class="pname">${esc(p.name || 'Unknown')}</p>
+      ${p.headline ? `<p class="phl">${esc(p.headline)}</p>` : ''}
+      <p class="pmeta">
+        ${p.location ? `<span>${esc(p.location)}</span>` : ''}
+        <span class="ok">● ${esc(cache)}</span>
+        <span>${esc(p._meta?.source || 'voyager')}${at ? ' · ' + esc(at) + 'Z' : ''}</span>
+        <a href="${esc(p.url)}" target="_blank" rel="noopener">linkedin ↗</a>
+      </p>
+    </div></div>`
 }
 
-function resultsView(p) {
+function rendered(p) {
+  const exp = p.experience?.length ? `<div class="card"><p class="kicker">Experience</p>${p.experience.map(expRow).join('')}</div>` : ''
+  const edu = p.education?.length ? `<div class="card"><p class="kicker">Education</p>${p.education.map(eduRow).join('')}</div>` : ''
+  const rest = [chipSec('Skills', p.skills), chipSec('Certifications', p.certifications), chipSec('Languages', p.languages)].filter(Boolean).join('')
   return headCard(p)
-    + (p.experience?.length ? `<div class="card"><h2>Experience</h2>${p.experience.map(expRow).join('')}</div>` : '')
-    + (p.education?.length ? `<div class="card"><h2>Education</h2>${p.education.map(eduRow).join('')}</div>` : '')
-    + chipSec('Skills', p.skills)
-    + chipSec('Certifications', p.certifications)
-    + chipSec('Languages', p.languages)
+    + (exp || edu ? `<div class="grid2">${exp}${edu}</div>` : '')
+    + rest
 }
 
 function hi(j) {
   return j.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*")(?:\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, (m, s) => {
-      if (s !== undefined) return /:\s*$/.test(m) ? `<span class="key">${s}</span>${m.slice(s.length)}` : `<span class="str">${s}</span>`
-      if (/^(?:true|false|null)$/.test(m)) return `<span class="bool">${m}</span>`
-      return `<span class="num">${m}</span>`
+    .replace(/("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*")(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, (m, s, col) => {
+      if (s !== undefined) return col ? `<span class="k">${s}</span>${col}` : `<span class="s">${s}</span>`
+      if (/^(?:true|false|null)$/.test(m)) return `<span class="b">${m}</span>`
+      return `<span class="n">${m}</span>`
     })
 }
 
 function paint() {
   if (!last) return
-  const body = view === 'rendered' ? resultsView(last) : `<pre><code>${hi(lastRaw)}</code></pre>`
-  $('out').innerHTML = `<div class="toolbar">
-    <div class="seg" role="tablist" aria-label="Result view">
-      <button type="button" id="tR" class="on" role="tab" aria-selected="true">Rendered</button>
-      <button type="button" id="tJ" role="tab" aria-selected="false">JSON</button>
+  const body = view === 'rendered' ? rendered(last) : `<pre>${hi(lastRaw)}</pre>`
+  $('out').innerHTML = `<div class="rtools">
+    <div class="vtabs" role="tablist" aria-label="Result view">
+      <button type="button" id="tR" class="on" role="tab" aria-selected="true">rendered</button>
+      <button type="button" id="tJ" role="tab" aria-selected="false">json</button>
     </div>
-    <button type="button" class="copy" id="jCopy">Copy JSON</button>
+    <button type="button" class="cp" id="jCopy">copy json</button>
   </div>${body}`
   $('tR').onclick = () => { view = 'rendered'; paint() }
   $('tJ').onclick = () => { view = 'json'; paint() }
@@ -306,23 +310,14 @@ function paint() {
 
 async function copyJson() {
   const b = $('jCopy')
-  try {
-    await navigator.clipboard.writeText(lastRaw)
-    b.textContent = 'Copied'
-  } catch {
-    const r = document.createRange()
-    r.selectNodeContents(document.querySelector('#out pre') || document.body)
-    const s = getSelection()
-    s.removeAllRanges()
-    s.addRange(r)
-    b.textContent = 'Selected'
-  }
-  setTimeout(() => { b.textContent = 'Copy JSON' }, 1200)
+  try { await navigator.clipboard.writeText(lastRaw); b.textContent = 'copied' }
+  catch { b.textContent = 'failed' }
+  setTimeout(() => { b.textContent = 'copy json' }, 1200)
 }
 
 function loading(on) {
   $('go').disabled = on
-  $('go').textContent = on ? 'Fetching…' : 'Fetch profile'
+  $('go').textContent = on ? 'fetching…' : 'fetch →'
   if (on) $('out').innerHTML = SKEL
 }
 
@@ -332,10 +327,10 @@ async function go(e) {
   const r = parse(v)
   if (r.err) {
     hint(MSG[r.err] || r.err, true)
-    $('url').classList.add('bad')
+    $('f').classList.add('bad')
     return
   }
-  $('url').classList.remove('bad')
+  $('f').classList.remove('bad')
   hint('')
   loading(true)
   try {
@@ -346,7 +341,7 @@ async function go(e) {
       const code = j?.error?.code || 'upstream_error'
       fail(res.status, code, MSG[code] || j?.error?.message || MSG.network)
     } else if (!j || !j.publicId) {
-      fail(res.status, 'bad_payload', 'Unexpected API response.')
+      fail(res.status, 'bad_payload', 'unexpected api response')
     } else {
       last = j
       lastRaw = JSON.stringify(j, null, 2)
@@ -362,19 +357,15 @@ async function go(e) {
 }
 
 $('f').addEventListener('submit', go)
+document.querySelectorAll('.ex').forEach((b) => b.addEventListener('click', () => {
+  $('url').value = b.dataset.u
+  $('f').requestSubmit()
+}))
 $('curlCopy').onclick = async () => {
-  try {
-    await navigator.clipboard.writeText($('curlText').textContent)
-    $('curlCopy').textContent = 'Copied'
-    setTimeout(() => { $('curlCopy').textContent = 'Copy' }, 1200)
-  } catch {}
+  try { await navigator.clipboard.writeText($('curlText').textContent); $('curlCopy').textContent = 'copied'; setTimeout(() => { $('curlCopy').textContent = 'copy' }, 1200) } catch {}
 }
 const q = new URLSearchParams(location.search).get('url')
-if (q) {
-  $('url').value = q
-  if ($('f').requestSubmit) $('f').requestSubmit()
-  else go()
-}
+if (q) { $('url').value = q; $('f').requestSubmit() }
 </script>
 </body>
 </html>
