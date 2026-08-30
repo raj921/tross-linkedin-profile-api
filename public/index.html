@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkedIn Profile API · Playground</title>
+<meta name="description" content="Reverse-engineered LinkedIn Voyager API behind one GET — paste a profile URL, get structured JSON.">
+<style>
+:root{
+  --bg:#0b0f14; --surface:#11161d; --surface-2:#171f29; --border:#24303e;
+  --text:#e8eef4; --text-2:#97a6b6;
+  --accent:#4da3ff; --accent-press:#2f7fd6;
+  --ok:#3fb950; --err:#f85149;
+  --r-s:8px; --r-m:12px;
+  --t:180ms cubic-bezier(.2,0,0,1);
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark}
+body{background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:0 24px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono);font-size:.9em}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+header{border-bottom:1px solid var(--border);padding:clamp(20px,4vw,32px) 0}
+.head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+h1{font-size:clamp(1.5rem,1.2rem + 1.5vw,2.1rem);line-height:1.2;letter-spacing:-.02em}
+.tag{color:var(--text-2);margin-top:6px;max-width:56ch}
+.live{font-family:var(--mono);font-size:12.5px;color:var(--ok);border:1px solid var(--border);border-radius:999px;padding:6px 14px;white-space:nowrap}
+.live:hover{text-decoration:none;border-color:var(--ok)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:8px}
+
+main{padding:clamp(24px,5vw,40px) 0 0}
+section{margin-bottom:24px}
+
+#url{flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-s);color:var(--text);font-family:var(--mono);font-size:13.5px;padding:12px 14px;transition:border-color var(--t)}
+#url::placeholder{color:#5c6b7a}
+#url:focus{outline:none;border-color:var(--accent)}
+#url.bad{border-color:var(--err)}
+.row{display:flex;gap:8px}
+#go{background:var(--accent);color:#06121f;font-weight:600;border-radius:var(--r-s);padding:12px 20px;transition:background var(--t),transform var(--t)}
+#go:hover{background:var(--accent-press)}
+#go:active{transform:scale(.97)}
+#go:disabled{opacity:.55;cursor:default;transform:none}
+.hint{font-family:var(--mono);font-size:12.5px;color:var(--text-2);margin-top:8px;min-height:1.4em}
+.hint.err{color:var(--err)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-m);padding:20px;margin-bottom:16px}
+.card h2{font-size:1rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:14px;font-weight:600}
+
+.head{display:flex;gap:16px;align-items:flex-start}
+.avatar{width:72px;height:72px;border-radius:var(--r-s);object-fit:cover;flex:none;background:var(--surface-2)}
+.avatar.ph{display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--accent);font-family:var(--mono)}
+.who{min-width:0}
+.who h2{font-size:1.25rem;text-transform:none;letter-spacing:0;color:var(--text);margin:0}
+.hl{margin-top:2px}
+.meta-row{display:flex;gap:12px;flex-wrap:wrap;color:var(--text-2);font-size:13.5px;margin-top:8px;align-items:center}
+.meta2{font-family:var(--mono);font-size:12px;color:#5c6b7a;margin-top:8px}
+
+.xrow{padding:12px 0;border-top:1px solid var(--border)}
+.xrow:first-of-type{border-top:0;padding-top:0}
+.xrow:last-child{padding-bottom:0}
+.xtop{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.xtop b{font-weight:600}
+.xco{color:var(--text-2)}
+.dates{font-family:var(--mono);font-size:12.5px;color:var(--text-2);white-space:nowrap}
+.xdesc{color:var(--text-2);font-size:13.5px;margin-top:6px;white-space:pre-line}
+.badge{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);border-radius:999px;padding:1px 8px;margin-left:8px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:13px}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-s);padding:3px;gap:2px}
+.seg button{padding:6px 14px;border-radius:6px;font-size:13px;color:var(--text-2);transition:color var(--t),background var(--t)}
+.seg button.on{background:var(--bg);color:var(--text)}
+.copy{font-family:var(--mono);font-size:12.5px;color:var(--text-2);border:1px solid var(--border);border-radius:var(--r-s);padding:6px 12px;transition:color var(--t),border-color var(--t)}
+.copy:hover{color:var(--text);border-color:var(--accent)}
+pre{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-s);padding:16px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55;max-height:480px}
+pre .key{color:#79c0ff}
+pre .str{color:#a5d6a7}
+pre .num{color:#f2cc60}
+pre .bool{color:#d2a8ff}
+
+.err-card{border-color:color-mix(in srgb,var(--err) 45%,var(--border))}
+.err-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.status{font-family:var(--mono);font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px;color:var(--err);background:color-mix(in srgb,var(--err) 15%,transparent)}
+.err-top code{color:var(--text-2)}
+
+.sk{background:var(--surface-2);border-radius:6px;position:relative;overflow:hidden}
+.sk::after{content:'';position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.05),transparent);animation:sh 1.4s infinite}
+@keyframes sh{to{transform:translateX(100%)}}
+.skel .l1{height:22px;width:40%}
+.skel .l2{height:14px;width:70%}
+.skel .l3{height:14px;width:50%}
+.skel .who .sk{margin-top:10px}
+.skel-b .l1{height:16px;width:30%}
+.skel-b .l2{margin-top:12px}
+.skel-b .l3{margin-top:12px}
+.w60{width:60%!important}
+
+.docs table{width:100%;border-collapse:collapse;font-size:13.5px}
+.docs td{padding:8px 0;border-top:1px solid var(--border);vertical-align:top}
+.docs tr:first-child td{border-top:0}
+.docs td:first-child{width:34%;padding-right:12px;white-space:nowrap}
+.docs code{color:var(--accent)}
+.curlrow{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}
+.curlrow code{flex:1;overflow-wrap:anywhere;color:var(--text-2)}
+
+footer{border-top:1px solid var(--border);margin-top:40px;padding:20px 0 32px;color:var(--text-2);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+}
+@media (max-width:560px){
+  .head{flex-direction:column}
+  .row{flex-direction:column}
+  #go{width:100%}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap head-row">
+    <div>
+      <h1>LinkedIn Profile API</h1>
+      <p class="tag">Reverse-engineered Voyager endpoints behind one GET. Paste a profile URL, get structured JSON — no browser automation, no SDK, zero dependencies.</p>
+    </div>
+    <a class="live" href="/healthz" target="_blank" rel="noopener"><span class="dot"></span>live</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="playground">
+    <form id="f" novalidate>
+      <label class="sr" for="url">LinkedIn profile URL or slug</label>
+      <div class="row">
+        <input id="url" type="text" spellcheck="false" autocomplete="off" placeholder="linkedin.com/in/williamhgates — or a bare slug">
+        <button id="go" type="submit">Fetch profile</button>
+      </div>
+      <p class="hint" id="hint" role="status"></p>
+    </form>
+  </section>
+
+  <section id="out" aria-live="polite" aria-label="Result"></section>
+
+  <section class="docs">
+    <div class="card" style="margin-bottom:0">
+      <h2>API</h2>
+      <table>
+        <tr><td><code>GET /profile?url=</code></td><td>profile URL or bare slug → structured JSON: name, headline, location, about, experience, education, skills, certifications, languages, images</td></tr>
+        <tr><td><code>GET /healthz</code></td><td>liveness — <code>{"ok":true}</code></td></tr>
+        <tr><td><code>GET /</code></td><td>this page</td></tr>
+      </table>
+      <div class="curlrow">
+        <code id="curlText">curl -s "https://tross-linkedin-profile-api-jet.vercel.app/profile?url=https://www.linkedin.com/in/williamhgates/"</code>
+        <button class="copy" id="curlCopy" type="button">Copy</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><a href="https://github.com/raj921/tross-linkedin-profile-api" target="_blank" rel="noopener">github.com/raj921/tross-linkedin-profile-api</a></span>
+    <span>design system in DESIGN.md · zero dependencies</span>
+  </div>
+</footer>
+
+<script>
+const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9-]{2,99}$/
+const $ = (id) => document.getElementById(id)
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+const MSG = {
+  missing_url: 'Enter a LinkedIn profile URL, e.g. linkedin.com/in/williamhgates',
+  bad_url: 'That does not look like a linkedin.com/in/<slug> profile URL.',
+  profile_not_found: 'Profile not found — or not visible to the backend account.',
+  linkedin_auth: 'Upstream LinkedIn session expired. The backend needs a fresh li_at cookie.',
+  linkedin_rate_limited: 'LinkedIn is throttling the backend. Try again shortly.',
+  not_found: 'Unknown endpoint.',
+  network: 'Could not reach the API. Check the connection and retry.',
+}
+
+const SKEL = `
+<div class="card head skel">
+  <div class="avatar sk"></div>
+  <div class="who" style="flex:1"><div class="sk l1"></div><div class="sk l2"></div><div class="sk l3"></div></div>
+</div>
+<div class="card skel-b"><div class="sk l1"></div><div class="sk l2"></div><div class="sk l3 w60"></div></div>
+<div class="card skel-b"><div class="sk l1"></div><div class="sk l3 w60"></div></div>`
+
+function parse(v) {
+  v = v.trim()
+  if (!v) return { err: 'missing_url' }
+  try {
+    const u = new URL(v)
+    if (!/^(www\.)?linkedin\.com$/.test(u.hostname)) return { err: 'bad_url' }
+    const m = u.pathname.match(/^\/in\/([^/]+)/)
+    return m && SLUG.test(m[1]) ? { slug: m[1] } : { err: 'bad_url' }
+  } catch {
+    const b = v.replace(/\/+$/, '')
+    return SLUG.test(b) ? { slug: b } : { err: 'bad_url' }
+  }
+}
+
+let last = null
+let lastRaw = ''
+let view = 'rendered'
+
+function hint(t, bad) {
+  const h = $('hint')
+  h.textContent = t || ''
+  h.classList.toggle('err', !!bad)
+}
+
+function fail(status, code, msg) {
+  $('out').innerHTML = `<div class="card err-card" role="alert" style="margin-bottom:0">
+    <div class="err-top"><span class="status">${status || 'ERR'}</span><code>${esc(code)}</code></div>
+    <p>${esc(msg)}</p></div>`
+}
+
+function range(x) {
+  return `${x.start || '?'} → ${x.current ? 'now' : (x.end || 'now')}`
+}
+
+function label(v) {
+  if (typeof v !== 'object' || v === null) return String(v)
+  if (v.skill && typeof v.skill === 'object') v = v.skill
+  return v.name || v.title || v.school || Object.values(v).find((x) => typeof x === 'string') || JSON.stringify(v)
+}
+
+function expRow(x) {
+  return `<div class="xrow"><div class="xtop">
+    <span><b>${esc(x.title || '—')}</b>${x.current ? '<span class="badge">Current</span>' : ''}${x.company ? ` <span class="xco">· ${esc(x.company)}</span>` : ''}</span>
+    <span class="dates">${esc(range(x))}</span></div>
+    ${x.description ? `<p class="xdesc">${esc(x.description)}</p>` : ''}</div>`
+}
+
+function eduRow(x) {
+  const bits = [x.degree, x.field].filter(Boolean).join(', ')
+  return `<div class="xrow"><div class="xtop">
+    <span><b>${esc(x.school || '—')}</b>${bits ? ` <span class="xco">· ${esc(bits)}</span>` : ''}</span>
+    <span class="dates">${esc(range(x))}</span></div></div>`
+}
+
+function chipSec(title, arr) {
+  if (!Array.isArray(arr) || !arr.length) return ''
+  return `<div class="card"><h2>${title}</h2><div class="chips">${arr.map((v) => `<span class="chip">${esc(label(v))}</span>`).join('')}</div></div>`
+}
+
+function headCard(p) {
+  const img = p.images && p.images.profile
+  const initials = (p.name || '?').split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
+  const cache = p._meta && p._meta.cache ? p._meta.cache : 'fresh'
+  const at = p._meta && p._meta.fetchedAt ? p._meta.fetchedAt.slice(0, 16).replace('T', ' ') : ''
+  return `<article class="card head">
+    ${img ? `<img class="avatar" src="${esc(img)}" alt="" onerror="this.remove()">` : `<div class="avatar ph">${esc(initials)}</div>`}
+    <div class="who">
+      <h2>${esc(p.name || 'Unknown')}</h2>
+      ${p.headline ? `<p class="hl">${esc(p.headline)}</p>` : ''}
+      <p class="meta-row">${p.location ? `<span>${esc(p.location)}</span>` : ''}
+        <a href="${esc(p.url)}" target="_blank" rel="noopener">Open on LinkedIn ↗</a></p>
+      <p class="meta2">${esc(p._meta?.source || 'voyager')} · cache ${esc(cache)}${at ? ` · ${esc(at)}Z` : ''}</p>
+    </div></article>`
+}
+
+function resultsView(p) {
+  return headCard(p)
+    + (p.experience?.length ? `<div class="card"><h2>Experience</h2>${p.experience.map(expRow).join('')}</div>` : '')
+    + (p.education?.length ? `<div class="card"><h2>Education</h2>${p.education.map(eduRow).join('')}</div>` : '')
+    + chipSec('Skills', p.skills)
+    + chipSec('Certifications', p.certifications)
+    + chipSec('Languages', p.languages)
+}
+
+function hi(j) {
+  return j.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*")(?:\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, (m, s) => {
+      if (s !== undefined) return /:\s*$/.test(m) ? `<span class="key">${s}</span>${m.slice(s.length)}` : `<span class="str">${s}</span>`
+      if (/^(?:true|false|null)$/.test(m)) return `<span class="bool">${m}</span>`
+      return `<span class="num">${m}</span>`
+    })
+}
+
+function paint() {
+  if (!last) return
+  const body = view === 'rendered' ? resultsView(last) : `<pre><code>${hi(lastRaw)}</code></pre>`
+  $('out').innerHTML = `<div class="toolbar">
+    <div class="seg" role="tablist" aria-label="Result view">
+      <button type="button" id="tR" class="on" role="tab" aria-selected="true">Rendered</button>
+      <button type="button" id="tJ" role="tab" aria-selected="false">JSON</button>
+    </div>
+    <button type="button" class="copy" id="jCopy">Copy JSON</button>
+  </div>${body}`
+  $('tR').onclick = () => { view = 'rendered'; paint() }
+  $('tJ').onclick = () => { view = 'json'; paint() }
+  $('jCopy').onclick = copyJson
+}
+
+async function copyJson() {
+  const b = $('jCopy')
+  try {
+    await navigator.clipboard.writeText(lastRaw)
+    b.textContent = 'Copied'
+  } catch {
+    const r = document.createRange()
+    r.selectNodeContents(document.querySelector('#out pre') || document.body)
+    const s = getSelection()
+    s.removeAllRanges()
+    s.addRange(r)
+    b.textContent = 'Selected'
+  }
+  setTimeout(() => { b.textContent = 'Copy JSON' }, 1200)
+}
+
+function loading(on) {
+  $('go').disabled = on
+  $('go').textContent = on ? 'Fetching…' : 'Fetch profile'
+  if (on) $('out').innerHTML = SKEL
+}
+
+async function go(e) {
+  if (e && e.preventDefault) e.preventDefault()
+  const v = $('url').value
+  const r = parse(v)
+  if (r.err) {
+    hint(MSG[r.err] || r.err, true)
+    $('url').classList.add('bad')
+    return
+  }
+  $('url').classList.remove('bad')
+  hint('')
+  loading(true)
+  try {
+    const res = await fetch('/profile?url=' + encodeURIComponent(v.trim()))
+    let j = null
+    try { j = await res.json() } catch {}
+    if (!res.ok) {
+      const code = j?.error?.code || 'upstream_error'
+      fail(res.status, code, MSG[code] || j?.error?.message || MSG.network)
+    } else if (!j || !j.publicId) {
+      fail(res.status, 'bad_payload', 'Unexpected API response.')
+    } else {
+      last = j
+      lastRaw = JSON.stringify(j, null, 2)
+      view = 'rendered'
+      history.replaceState(null, '', '?url=' + encodeURIComponent(v.trim()))
+      paint()
+    }
+  } catch {
+    fail(0, 'network', MSG.network)
+  } finally {
+    loading(false)
+  }
+}
+
+$('f').addEventListener('submit', go)
+$('curlCopy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($('curlText').textContent)
+    $('curlCopy').textContent = 'Copied'
+    setTimeout(() => { $('curlCopy').textContent = 'Copy' }, 1200)
+  } catch {}
+}
+const q = new URLSearchParams(location.search).get('url')
+if (q) {
+  $('url').value = q
+  if ($('f').requestSubmit) $('f').requestSubmit()
+  else go()
+}
+</script>
+</body>
+</html>

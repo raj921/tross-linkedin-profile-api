@@ -1,6 +1,9 @@
 import http from 'node:http'
+import { readFileSync } from 'node:fs'
 import { fetchProfile, fetchSection } from './li.js'
 import { mapProfile } from './map.js'
+
+const UI = readFileSync(new URL('./public/index.html', import.meta.url))
 
 const PORT = process.env.PORT || 3000
 const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9-]{2,99}$/
@@ -56,6 +59,11 @@ const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x')
 
   if (u.pathname === '/healthz') return send(res, 200, { ok: true })
+
+  if (u.pathname === '/') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+    return res.end(UI)
+  }
 
   if (u.pathname !== '/profile') return err(res, 404, 'not_found', 'GET /profile?url=<linkedin profile url>')
 

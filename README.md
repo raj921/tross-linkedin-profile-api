@@ -49,6 +49,10 @@ Accepts a full profile URL (`https://www.linkedin.com/in/<slug>/`) or a bare slu
 | 502 | `linkedin_auth` | LinkedIn session cookie expired/flagged — rotate `LI_AT` |
 | 503 | `linkedin_rate_limited` | LinkedIn is throttling; retry shortly |
 
+### `GET /`
+
+Self-contained demo UI (zero dependencies, no build step): paste a profile URL, see the rendered profile and the raw JSON. Same-origin call to `/profile` — no CORS involved. The design system behind it is documented in [DESIGN.md](DESIGN.md).
+
 ### `GET /healthz`
 
 Liveness probe. Returns `{ "ok": true }`.
