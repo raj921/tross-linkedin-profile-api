@@ -21,11 +21,15 @@ LI_LIVE=1 npm run check # live
 
 `LI_AT` + `JSESSIONID` cookies (`li.js:4`). Rotate on `502 linkedin_auth`.
 
+## Approach
+
+Reverse-engineered Voyager endpoints (`FullProfileWithEntities-93` at `li.js:86`). `map.js:27` normalizes `multiLocale*` to English, largest image artifact, resolved `urn` refs. `1h` `Map` cache + `Promise.all` sections (`server.js:38`).
+
 ## Limits
 
 - Session decays (IP pinned) — manual rotation or `LI_EMAIL`/`LI_PASSWORD` (`li.js:31`).
 - `queryId` rotates (`LI_QUERY_ID`).
-- Rate limits — `1h` `Map` cache (`server.js:10`), `stale-while-revalidate` (`server.js:71`).
+- Rate limits — cache absorbs repeats.
 - Unofficial — no SLA.
 
 Repo: `https://github.com/raj921/tross-linkedin-profile-api`
