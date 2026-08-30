@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { fetchProfile } from './li.js'
+import { fetchProfile, fetchSection } from './li.js'
 import { mapProfile } from './map.js'
 
 const PORT = process.env.PORT || 3000
@@ -28,6 +28,31 @@ function slugFrom(raw) {
   }
 }
 
+function profileUrnFrom(dash) {
+  const p = (dash.included || []).find((e) => (e.$type || '').endsWith('.Profile'))
+  return p?.entityUrn || null
+}
+
+async function fetchAndMap(slug) {
+  const dash = await fetchProfile(slug)
+  const urn = profileUrnFrom(dash)
+  // ponytail: parallel section fetch — 3 calls concurrent, Ceiling: 4 concurrent Voyager hits (1+3) may 429 under burst; upgrade: semaphore/queue at 2
+  const [skills, certs, langs] = urn && process.env.LI_QUERY_ID
+    ? await Promise.all([fetchSection(urn, 'skills'), fetchSection(urn, 'certifications'), fetchSection(urn, 'languages')])
+    : [[], [], []]
+  const sections = {
+    skills: Array.isArray(skills) ? skills : skills?.data || [],
+    certifications: Array.isArray(certs) ? certs : certs?.data || [],
+    languages: Array.isArray(langs) ? langs : langs?.data || [],
+  }
+  return mapProfile(dash, slug, sections)
+}
+
+async function refresh(slug) {
+  const p = await fetchAndMap(slug)
+  if (p) cache.set(slug, { at: Date.now(), data: p })
+}
+
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x')
 
@@ -41,13 +66,19 @@ const server = http.createServer(async (req, res) => {
   if (!slug) return err(res, 400, 'bad_url', 'expected a linkedin.com/in/<slug> profile url')
 
   const hit = cache.get(slug)
-  if (hit && Date.now() - hit.at < TTL) return send(res, 200, { ...hit.data, _meta: { ...hit.data._meta, cache: 'hit' } })
+  const now = Date.now()
+  if (hit && now - hit.at < TTL) return send(res, 200, { ...hit.data, _meta: { ...hit.data._meta, cache: 'hit' } })
+  // ponytail: stale-while-revalidate — serve stale instantly, refresh in background. Ceiling: single background refresh per slug; upgrade: coalesce with promise cache
+  if (hit && now - hit.at < TTL * 2) {
+    send(res, 200, { ...hit.data, _meta: { ...hit.data._meta, cache: 'stale' } })
+    refresh(slug).catch(() => {})
+    return
+  }
 
   try {
-    const dash = await fetchProfile(slug)
-    const profile = mapProfile(dash, slug)
+    const profile = await fetchAndMap(slug)
     if (!profile) return err(res, 404, 'profile_not_found', `no profile data for ${slug}`)
-    cache.set(slug, { at: Date.now(), data: profile })
+    cache.set(slug, { at: now, data: profile })
     send(res, 200, profile)
   } catch (e) {
     const code = e.message || 'upstream_error'
