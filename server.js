@@ -18,13 +18,15 @@ const send = (res, status, obj) => {
 const err = (res, status, code, message) => send(res, status, { error: { code, message } })
 
 function slugFrom(raw) {
+  const trimmed = raw.trim()
   try {
-    const u = new URL(raw)
+    const u = new URL(trimmed)
     if (!/^(www\.)?linkedin\.com$/.test(u.hostname)) return null
     const m = u.pathname.match(/^\/in\/([^/]+)/)
     return m && SLUG.test(m[1]) ? m[1] : null
   } catch {
-    return SLUG.test(raw) ? raw : null // bare slug accepted
+    const bare = trimmed.replace(/\/+$/, '')
+    return SLUG.test(bare) ? bare : null
   }
 }
 
