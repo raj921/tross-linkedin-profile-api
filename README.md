@@ -6,12 +6,12 @@ No browser automation anywhere — the service calls LinkedIn's own internal end
 
 ## Live API
 
-**Base URL:** `https://<deployed-url>`
+**Base URL:** `https://tross-linkedin-profile-api-jet.vercel.app`
 
 ### `GET /profile?url=<linkedin-profile-url>`
 
 ```bash
-curl "https://<deployed-url>/profile?url=https://www.linkedin.com/in/williamhgates/"
+curl "https://tross-linkedin-profile-api-jet.vercel.app/profile?url=https://www.linkedin.com/in/williamhgates/"
 ```
 
 Accepts a full profile URL (`https://www.linkedin.com/in/<slug>/`) or a bare slug (`<slug>`).
