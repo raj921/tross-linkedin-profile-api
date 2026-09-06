@@ -4,6 +4,12 @@ import { fetchProfile, fetchSections } from './li.js'
 import { mapProfile } from './map.js'
 
 const UI = readFileSync(new URL('./public/index.html', import.meta.url))
+const CSS = readFileSync(new URL('./public/app.css', import.meta.url))
+const JS = readFileSync(new URL('./public/app.js', import.meta.url))
+const ASSETS = {
+  '/app.css': ['text/css; charset=utf-8', CSS],
+  '/app.js': ['text/javascript; charset=utf-8', JS],
+}
 
 const PORT = process.env.PORT || 3000
 const SLUG = /^[a-zA-Z0-9][a-zA-Z0-9-]{2,99}$/
@@ -12,7 +18,10 @@ const cache = new Map()
 const TTL = 60 * 60 * 1000
 
 const send = (res, status, obj) => {
-  res.writeHead(status, { 'content-type': 'application/json' })
+  res.writeHead(status, {
+    'content-type': 'application/json',
+    'access-control-allow-origin': '*',
+  })
   res.end(JSON.stringify(obj, null, 2))
 }
 
@@ -57,6 +66,12 @@ const server = http.createServer(async (req, res) => {
   if (u.pathname === '/') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
     return res.end(UI)
+  }
+
+  const asset = ASSETS[u.pathname]
+  if (asset) {
+    res.writeHead(200, { 'content-type': asset[0], 'cache-control': 'no-cache' })
+    return res.end(asset[1])
   }
 
   if (u.pathname !== '/profile') return err(res, 404, 'not_found', 'GET /profile?url=<linkedin profile url>')

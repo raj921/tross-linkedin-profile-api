@@ -54,64 +54,65 @@ The UI maps each code to a human message; unknown codes render the raw message.
 | `skills[]`, `certifications[]`, `languages[]` | array | fail-soft: `[]` on section error |
 | `_meta` | `{ fetchedAt, source, cache }` | `cache`: `hit` / `stale` / absent on fresh |
 
-## 3. UI design system (demo playground)
+## 3. UI design system (playground)
+
+Frontend lives in three files, served by `server.js` at `/` with zero build step:
+`public/index.html` (markup + inline SVG icon sprite), `public/app.css` (tokens + styles),
+`public/app.js` (state, rendering, motion). `GET /profile` responses carry
+`access-control-allow-origin: *` so the page is embeddable/callable from any origin.
 
 ### Principles
 
-1. **Console-first.** Dark, monospace-accented — it should feel like the API it wraps, not a marketing page.
-2. **One accent.** LinkedIn-blue for actions and links only. Semantic colors (ok / warn / err) carry status; nothing else is colored.
-3. **Data is the interface.** Profile content and raw JSON are the heroes; chrome is quiet.
-4. **Motion with manners.** 150–250ms ease-out for state changes only, nothing decorative; `prefers-reduced-motion` disables all of it.
+1. **Instrument, not marketing page.** Dark console-first aesthetic with an electric-blue accent, mono micro-type, hairline + glass surfaces. It should read as the control surface of the API it wraps.
+2. **One accent, borrowed colors.** LinkedIn-blue family drives actions/links/highlights. Green/amber/red are status-only. Data-derived color is reserved (never decorative rainbow).
+3. **Motion with meaning.** Entry staggering, state confirmation, and hover affordances only — every animation answers "what just happened?" Everything is `prefers-reduced-motion`-aware (CSS kills transitions/animations; JS reads the flag for typewriter, counters, and particles).
+4. **Real time is the interface.** The console shows live per-request telemetry: `200 OK · 3 roles · 2 schools · 12 skills · 4.1 kb · 412 ms · cache hit`, typed out in the status line.
 
-### Tokens
-
-Defined once as CSS custom properties in `public/index.html`:
+### Tokens (`:root` in `app.css`)
 
 | token | value | use |
 |---|---|---|
-| `--bg` | `#0b0f14` | page |
-| `--surface` | `#11161d` | cards |
-| `--surface-2` | `#171f29` | inputs, code blocks |
-| `--border` | `#24303e` | 1px hairlines |
-| `--text` / `--text-2` | `#e8eef4` / `#97a6b6` | primary / secondary text |
-| `--accent` | `#4da3ff` | actions, links (LinkedIn-blue family, dark-bg tuned) |
-| `--ok` / `--warn` / `--err` | `#3fb950` / `#d29922` / `#f85149` | status only |
-| `--r-s` / `--r-m` | `8px` / `12px` | radii |
-| `--t` | `180ms cubic-bezier(.2,0,0,1)` | all transitions |
-| type | system-ui stack; `ui-monospace` for code, JSON, and the URL input | |
-| scale | body 15–16px; `h1` `clamp(1.5rem, 1.2rem + 1.5vw, 2.1rem)`; `h2` uppercase, tracked | Utopia-style fluid |
-| space | 4px-base scale (4 / 8 / 12 / 16 / 24 / 32 / 48 / 64) | no magic values |
+| `--bg` / `--bg2` | `#070b13` / `#0a101c` | page / raised |
+| `--panel` / `--panel2` | white at 5% / 9% alpha | glass fills |
+| `--line` / `--line2` | slate at 16% / 32% | hairlines |
+| `--t1` / `--t2` / `--t3` | `#e9eff9` / `#9db0c9` / `#75849d` | text ladder |
+| `--acc` / `--acc-hi` | `#5b8cff` / `#9ec2ff` | accent |
+| `--ok` / `--warn` / `--err` | `#57e3a0` / `#f5c451` / `#ff7d92` | status only |
+| `--grad` | blue→cyan | hero keyword + logo only |
+| `--ease` | `cubic-bezier(.16,1,.3,1)` | all motion |
+| type | Inter + JetBrains Mono (loaded w/ system fallbacks) | mono = HUD/code/dates |
+| radii | 10 / 14 / 20px | s / m / l |
 
-### Components
+### Anatomy
 
-1. **URL input + Fetch** — single-line combo; live client-side validation using the same slug rules as `server.js`; invalid → inline hint in `--err`, never a modal; button disabled while loading with label "Fetching…".
-2. **Profile header card** — avatar (largest image artifact, initials fallback), name, headline, location, "Open on LinkedIn" link, `_meta` line (source · cache · fetchedAt).
-3. **Experience rows** — title + company bold, `Current` badge in `--ok`, date range right-aligned in `--text-2`, description below; 1px separators, no nested cards.
-4. **Education rows** — school + degree/field + dates.
-5. **Chips** — skills, certifications, languages; the whole section hides when empty.
-6. **Rendered ↔ JSON toggle** — segmented control; JSON pane is syntax-highlighted monospace with a Copy button that confirms "Copied" in place for ~1.2s.
-7. **Error callout** — status chip + code + human message per the error model; covers network failure too.
-8. **Skeleton** — header + three lines shimmer while loading; fixed geometry so nothing shifts.
+1. **Ambience** — fixed radial glows + blueprint dot grid + a lightweight canvas particle net (links fade with distance, pauses when hidden/reduced-motion).
+2. **Mast** — sticky glass bar that gains a hairline on scroll; brand mark tilts on hover; `live` health pill with a pulsing halo → `/healthz`; github ghost link.
+3. **Hero** — kicker pill, gradient-accented display headline, lede, capability chips; all enter on load with a 70ms stagger.
+4. **Resolver console** — terminal chrome (traffic dots, corner brackets, origin readout). `❯` prompt + mono input with **live validation** (slug regex mirrors `server.js`; red tint + shake + typed error on submit). Resolve button morphs: arrow → spinner → green ✓ / red ✕ flash, with a light sweep across the console on success. Under the input a reserved status line types the request telemetry; example chips (`williamhgates`, `rbranson`, not-found demo) plus key hints (`/` focus · `↑↓` history · `esc` clear).
+5. **Profile dashboard** (`rendered` view) — cover photo banner (blur-in, gradient plain fallback) with overlapping avatar (initials fallback on image error), name/headline/location, action buttons (copy json · copy share link), and a meta chip rail (cache state colored, source, slug, ms, bytes, fetched time). Below, a two-column bento: left = About (auto-fold "read more" when > 4 lines) + Experience (timeline rail, node markers, `now` pulse on current roles, tenure pills); right = Education, Skills, Certifications, Languages — kinetic `#chip` stacks with count tickers; empty sections render a fail-soft note.
+6. **JSON view** — profile/json segmented tabs with a sliding glider; syntax-highlighted pane; click-to-select for manual copy.
+7. **Loading** — shimmer skeleton mimicking the exact dashboard geometry (banner + avatar + column bars).
+8. **Errors** — alert card: icon tile, mono code chip + status, human copy per error code (incl. network), retry/clear actions; console shakes and types `502 linkedin_auth — …`.
+9. **Reference** — scroll-revealed endpoint cards (`GET /profile`, `/healthz`, `/`), a live curl bar with in-place copy, and a collapsible response-schema grid + error-code legend.
 
 ### Interaction rules
 
-- Feedback under 100ms: validation is client-side; the network round-trip is the only wait, and the skeleton covers it.
-- Copy is confirmed in place ("Copied"), never a toast that moves layout; on clipboard failure the JSON text is selected for manual copy.
-- `focus-visible` rings on every interactive element; the whole flow is keyboard-operable.
-- A successful fetch writes `?url=` to the address bar (shareable); on load, an existing `?url=` auto-fetches.
-- No layout shift anywhere: the skeleton has fixed geometry and results replace it in place.
+- Success/failure states are **visible in the same view** (button flash, console border, status line, then dashboard) — never a modal, never a toast that shifts layout.
+- Copy buttons confirm in place (~1.3s), fall back to execCommand, and the JSON pane click-selects as a last resort.
+- `?url=` syncs to the address bar; on load it auto-resolves; `esc` clears; `↑/↓` walks last-12 request history; `/` focuses the prompt.
+- Rendered dashboards enter card-by-card (70ms stagger, cubic-bezier rise); counts tick up once.
+- **Offline sample mode** — when not on `vercel.app` and the upstream is unreachable/expired (sandbox/self-host without cookies), the playground swaps in a clearly-labeled bundled fictional profile (`sample` badge, `fictional — ui demo data` note) so the whole UI stays demonstrable. Production hosts always show real responses or real errors.
 
 ### Accessibility
 
-- `aria-live="polite"` on the result region; button disabled + labeled while loading.
-- Real `<label>` on the input; AA contrast for all text tokens on `--bg` / `--surface`.
-- All motion wrapped in `prefers-reduced-motion: reduce`.
+- `aria-live="polite"` result region + `role=status` log; real `<label>`; visible `:focus-visible` rings; buttons remain keyboard operable.
+- AA-contrast text ladder; color is never the only signal (icons + text accompany status colors).
+- All motion gated by `prefers-reduced-motion` (CSS + JS) — no shimmer, typewriter, sweep, counters, or particles.
 
-### Audit checklist (run before shipping)
+### Audit checklist
 
-- [ ] Every state rendered: idle, loading, result, empty sections, each error code, network failure
-- [ ] No card-in-card, no gradients, no decorative motion, one accent
-- [ ] Spacing only from the scale; no magic pixel values beyond 1px hairlines
-- [ ] Keyboard-only pass: tab to input → fetch → toggle → copy
-- [ ] Reduced-motion pass: no shimmer, no transitions
-- [ ] Long-content pass: long headlines/descriptions wrap without overflow
+- [x] States: idle, validating, fetching (skeleton + busy console), success dashboard, empty sections, typed errors, network failure, sample mode
+- [x] One accent + status-only colors; gradients confined to hero keyword / logo / cover fallback
+- [x] Keyboard pass: `/` focus → enter resolve → tabs → copy → `esc` clear → `↑` history
+- [x] Reduced-motion pass; long-content pass (foldable About/descriptions, wrapping everywhere)
+- [x] Responsive pass: 1060→1-col bento at ≤860px; console compresses; no horizontal overflow
